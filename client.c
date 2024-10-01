@@ -37,6 +37,8 @@ int main() {
    int n = 0;
   while ((buffer[n++] = getchar()) != '\n')
                 ;
+  encapsulate_register(buffer);
+
   if ((send(sockfd, buffer, sizeof(buffer), 0)) < 0) {
       printf("Message not sent...\n");
     }

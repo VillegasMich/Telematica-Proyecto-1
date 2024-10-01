@@ -56,14 +56,20 @@ void accept_connection(int *server_socket, int *client_socket){
 void analyze_header(char *header, char *body) {
   if ((strcmp(header, "REGISTER") == 0)){
     printf("REG\n");
+    //Toma el contenido del body y lo guarda en la estructura de datos
   } else if((strcmp(header, "CONNECT") == 0)){
     printf("CON\n");
+    //Busca en la estructura de datos el body
+    //Si lo encuentra crea la pareja de clientes
   }else if((strcmp(header, "MESSAGE") == 0)){
     printf("MESS\n");
+    // Lee el body, lo encapsula y lo manda al otro cliente
   } else if((strcmp(header, "EXIT") == 0)){
     printf("EX\n");
+    // Rompe la pareja de clientes
   } else if((strcmp(header, "DISCONNECT") == 0)){
     printf("DIS\n");
+    // Mata al cliente
   }
 }
 
@@ -79,77 +85,32 @@ void read_client(int *client_socket, char *buff){
     recv(*client_socket, buff, BUFFER_SIZE, 0);
 }
 
-void encapsulate_register(char msg[BUFFER_SIZE_MSG]) {
-  printf("Encapsulating register\n");
-  printf("Message: %s\n", msg);
-  char encapsulated_msg[BUFFER_SIZE_HEADER] = "REGISTER ";
+void encapsulate_register(char *msg) {
+  char encapsulated_msg[BUFFER_SIZE] = "REGISTER ";
   strcat(encapsulated_msg, msg);
-  printf("Encapsulated message: %s\n", encapsulated_msg);
+  strcpy(msg, encapsulated_msg);
 }
 
-void encapsulate_connect(char msg[BUFFER_SIZE_MSG]) {
-  printf("Encapsulating connect\n");
-  printf("Message: %s\n", msg);
-  char encapsulated_msg[BUFFER_SIZE_HEADER] = "CONNECT ";
+void encapsulate_connect(char *msg) {
+  char encapsulated_msg[BUFFER_SIZE] = "CONNECT ";
   strcat(encapsulated_msg, msg);
-  printf("Encapsulated message: %s\n", encapsulated_msg);
+  strcpy(msg, encapsulated_msg);
 }
 
-void encapsulate_message(char msg[BUFFER_SIZE_MSG]) {
-  printf("Encapsulating message\n");
-  printf("Message: %s\n", msg);
-  char encapsulated_msg[BUFFER_SIZE_HEADER] = "MESSAGE ";
+void encapsulate_message(char *msg) {
+  char encapsulated_msg[BUFFER_SIZE] = "MESSAGE ";
   strcat(encapsulated_msg, msg);
-  printf("Encapsulated message: %s\n", encapsulated_msg);
+  strcpy(msg, encapsulated_msg);
 }
 
-void encapsulate_exit(char msg[BUFFER_SIZE_MSG]) {
-  printf("Encapsulating exit\n");
-  printf("Message: %s\n", msg);
-  char encapsulated_msg[BUFFER_SIZE_HEADER] = "EXIT ";
+void encapsulate_exit(char *msg) {
+  char encapsulated_msg[BUFFER_SIZE] = "EXIT ";
   strcat(encapsulated_msg, msg);
-  printf("Encapsulated message: %s\n", encapsulated_msg);
+  strcpy(msg, encapsulated_msg);
 }
 
-void encapsulate_disconnect(char msg[BUFFER_SIZE_MSG]) {
-  printf("Encapsulating disconnect\n");
-  printf("Message: %s\n", msg);
-  char encapsulated_msg[BUFFER_SIZE_HEADER] = "DISCONNECT ";
+void encapsulate_disconnect(char *msg) {
+  char encapsulated_msg[BUFFER_SIZE] = "DISCONNECT ";
   strcat(encapsulated_msg, msg);
-  printf("Encapsulated message: %s\n", encapsulated_msg);
-}
-
-void uncapsulate_register(char msg[BUFFER_SIZE]) {
-  printf("Uncapsulating register: %s\n", msg);
-  char *ptr = msg;
-  char *unencapsulated_msg = ptr + strlen("REGISTER ");
-  printf("Unencapsulated message: %s\n", unencapsulated_msg);
-}
-
-void uncapsulate_connect(char msg[BUFFER_SIZE]) {
-  printf("Uncapsulating connect: %s\n", msg);
-  char *ptr = msg;
-  char *unencapsulated_msg = ptr + strlen("CONNECT ");
-  printf("Unencapsulated message: %s\n", unencapsulated_msg);
-}
-
-void uncapsulate_message(char msg[BUFFER_SIZE]) {
-  printf("Uncapsulating message: %s\n", msg);
-  char *ptr = msg;
-  char *unencapsulated_msg = ptr + strlen("MESSAGE ");
-  printf("Unencapsulated message: %s\n", unencapsulated_msg);
-}
-
-void uncapsulate_exit(char msg[BUFFER_SIZE]) {
-  printf("Uncapsulating exit: %s\n", msg);
-  char *ptr = msg;
-  char *unencapsulated_msg = ptr + strlen("EXIT ");
-  printf("Unencapsulated message: %s\n", unencapsulated_msg);
-}
-
-void uncapsulate_disconnect(char msg[BUFFER_SIZE]) {
-  printf("Uncapsulating disconnect: %s\n", msg);
-  char *ptr = msg;
-  char *unencapsulated_msg = ptr + strlen("DISCONNECT ");
-  printf("Unencapsulated message: %s\n", unencapsulated_msg);
+  strcpy(msg, encapsulated_msg);
 }

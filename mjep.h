@@ -18,11 +18,11 @@
 void connect_to_server(); // client
 void initialize_conenction(int *sockfd); // server
 void accept_connection(int *server_socket, int *client_socket); // server
-void encapsulate_register(char msg[BUFFER_SIZE_MSG]);
-void encapsulate_connect(char msg[BUFFER_SIZE_MSG]);
-void encapsulate_message(char msg[BUFFER_SIZE_MSG]);
-void encapsulate_exit(char msg[BUFFER_SIZE_MSG]);
-void encapsulate_disconnect(char msg[BUFFER_SIZE_MSG]);
+void encapsulate_register(char *msg);
+void encapsulate_connect(char *msg);
+void encapsulate_message(char *msg);
+void encapsulate_exit(char *msg);
+void encapsulate_disconnect(char *msg);
 
 void uncapsulate_msg(char *buff);
 void read_client(int *client_socket, char *buff);

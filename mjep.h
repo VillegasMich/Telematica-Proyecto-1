@@ -14,6 +14,15 @@
 #include <sys/types.h>
 #include <unistd.h> // read(), write(), close()
 #include<arpa/inet.h> // inet_addr()
+#define MAX_LEN_USERNAME 15
+#define BACKLOG 10
+
+
+typedef volatile struct {
+    char* username;
+    int socket;
+    int chatting;
+} client;
 
 void connect_to_server(); // client
 void initialize_conenction(int *sockfd); // server
@@ -22,8 +31,8 @@ void encapsulate_register(char *msg);
 void encapsulate_connect(char *msg);
 void encapsulate_message(char *msg);
 void encapsulate_exit(char *msg);
+void encapsulate_ack(char *msg);
 void encapsulate_disconnect(char *msg);
-
-void uncapsulate_msg(char *buff);
+void uncapsulate(char *buff, client *client_array, int n_thread, int *client_socket);
 void read_client(int *client_socket, char *buff);
 #endif

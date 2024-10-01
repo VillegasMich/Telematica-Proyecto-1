@@ -1,6 +1,7 @@
 {
   "files.associations": {
     "*.ejs": "html",
-    "mjep.h": "c"
+    "mjep.h": "c",
+    "inet.h": "c"
   }
 }

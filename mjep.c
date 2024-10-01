@@ -1,6 +1,34 @@
 #include "mjep.h"
 
 
+void send_users(client *client_array, char* response) {
+    for (int i = 0; i < BACKLOG; i++) {
+        if (client_array[i].username != NULL) {
+            char i_str[10];
+            sprintf(i_str, "%d-", i);
+            strcat(response, i_str);
+            strcat(response, client_array[i].username);
+            strcat(response, " \n");
+        }
+    }
+    
+}
+
+
+void manage_register(char *body, client *client_array, int n_thread, int *client_socket) {
+  char response[MAX_LEN_USERNAME * BACKLOG] = {0};
+  client_array[n_thread].username = malloc(strlen(body) + 1); 
+  if (client_array[n_thread].username == NULL || n_thread >= BACKLOG) {
+    strcpy(response, "0");
+  } else {
+    strcpy(client_array[n_thread].username, body);
+    send_users(client_array, response);
+    //printf("response: %s\n", response);
+    client_array[n_thread].socket = *client_socket;
+  }
+  encapsulate_ack(response);
+  send(*client_socket, response, (MAX_LEN_USERNAME*BACKLOG) + BUFFER_SIZE_HEADER , 0);
+}
 
 void connect_to_server() { printf("Connecting to server\n"); }
 
@@ -53,10 +81,11 @@ void accept_connection(int *server_socket, int *client_socket){
         }
 }
 
-void analyze_header(char *header, char *body) {
+void analyze_header(char *header, char *body, client * client_array, int n_thread, int *client_socket) {
   if ((strcmp(header, "REGISTER") == 0)){
-    printf("REG\n");
-    //Toma el contenido del body y lo guarda en la estructura de datos
+    manage_register(body, client_array, n_thread, client_socket);
+    printf("-----registered----- \n");
+
   } else if((strcmp(header, "CONNECT") == 0)){
     printf("CON\n");
     //Busca en la estructura de datos el body
@@ -73,11 +102,13 @@ void analyze_header(char *header, char *body) {
   }
 }
 
-void uncapsulate_msg(char *buff){
+
+
+void uncapsulate(char *buff, client* client_array, int n_thread, int *client_socket) {
     char header[BUFFER_SIZE_HEADER], body[BUFFER_SIZE_MSG];
     //split the header and the body
-    sscanf(buff, "%s %s", header, body);
-    analyze_header(header, body);
+    sscanf(buff, "%s %s", header, body); //el body debe ser desde donde acaba el header hasta el final
+    analyze_header(header, body, client_array, n_thread, client_socket);
 }
 
 void read_client(int *client_socket, char *buff){
@@ -111,6 +142,12 @@ void encapsulate_exit(char *msg) {
 
 void encapsulate_disconnect(char *msg) {
   char encapsulated_msg[BUFFER_SIZE] = "DISCONNECT ";
+  strcat(encapsulated_msg, msg);
+  strcpy(msg, encapsulated_msg);
+}
+
+void encapsulate_ack(char *msg) {
+  char encapsulated_msg[(MAX_LEN_USERNAME*BACKLOG) + BUFFER_SIZE_HEADER ] = "ACK ";
   strcat(encapsulated_msg, msg);
   strcpy(msg, encapsulated_msg);
 }

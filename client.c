@@ -34,33 +34,33 @@ int main() {
 
   // function for chat
   char buffer[2000];
-   printf("Username: ");
-   int n = 0;
+  printf("Username: ");
+  int n = 0;
   while ((buffer[n++] = getchar()) != '\n')
-                ;
+    ;
   encapsulate_register(buffer);
 
   if ((send(sockfd, buffer, sizeof(buffer), 0)) < 0) {
-      printf("Message not sent...\n");
-    }
+    printf("Message not sent...\n");
+  }
 
   // receive the message from server
-  if (recv(sockfd, buffer, sizeof(buffer), 0) < 0) { 
+  if (recv(sockfd, buffer, sizeof(buffer), 0) < 0) {
     printf("Unable to receive the message...\n");
   }
   // print the received message TODOS LOS DESENCAPSULAR
-    char header[BUFFER_SIZE_HEADER], body[MAX_LEN_USERNAME * BACKLOG];
-    char *token;
-    token = strtok(buffer, " ");
-    strcpy(header, token);
-    token = strtok(NULL, header);
-    strcpy(body, token);
-    if((strcmp(header, "ACK") == 0) && (strcmp(body, "0") != 0)){
-      printf("%s\n", body);
-    }else{
-    } 
-    
-    // si es 0 le mandamos otra vez el register al server
+  char header[BUFFER_SIZE_HEADER], body[MAX_LEN_USERNAME * BACKLOG];
+  char *token;
+  token = strtok(buffer, " ");
+  strcpy(header, token);
+  token = strtok(NULL, header);
+  strcpy(body, token);
+  if ((strcmp(header, "ACK") == 0) && (strcmp(body, "0") != 0)) {
+    printf("%s\n", body);
+  } else {
+  }
+
+  // si es 0 le mandamos otra vez el register al server
 
   // close the socket
   close(sockfd);

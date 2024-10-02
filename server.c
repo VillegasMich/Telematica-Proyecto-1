@@ -17,7 +17,6 @@ void manage_client(void *arg) {
   int index = args->index; // extract the values becouse other threads
   read_client(own_client_socket, buff);
   uncapsulate(buff, args->clients_array, index, own_client_socket);
-
   pthread_exit(NULL);
 }
 

@@ -1,5 +1,6 @@
 #include "mjep.h"
 #include <stdio.h>
+#include <string.h>
 
 void send_users(client *client_array, char *response) {
   for (int i = 0; i < BACKLOG; i++) {
@@ -27,6 +28,11 @@ void manage_register(char *body, client *client_array, int index,
   encapsulate_ack(response);
   send(client_socket, response,
        (MAX_LEN_USERNAME * BACKLOG) + BUFFER_SIZE_HEADER, 0);
+  for (int i = 0; i < BACKLOG; i++) {
+    if (client_array[i].username != NULL) {
+      printf("%s \n", client_array[i].username);
+    }
+  }
 }
 
 void connect_to_server() { printf("Connecting to server\n"); }
@@ -106,10 +112,14 @@ void analyze_header(char *header, char *body, client *client_array, int index,
 
 void uncapsulate(char *buff, client *client_array, int index,
                  int client_socket) {
-  char header[BUFFER_SIZE_HEADER], body[BUFFER_SIZE_MSG];
-  // split the header and the body
-  sscanf(buff, "%s %s", header,
-         body); // el body debe ser desde donde acaba el header hasta el final
+  char header[BUFFER_SIZE_HEADER], body[MAX_LEN_USERNAME * BACKLOG];
+  char *token;
+  token = strtok(buff, " ");
+  strcpy(header, token);
+  token = strtok(NULL, header);
+  strcpy(body, token);
+  body[strcspn(body, "\n")] = '\0';
+  printf("header: %s body: %s \n", header, body);
   analyze_header(header, body, client_array, index, client_socket);
 }
 

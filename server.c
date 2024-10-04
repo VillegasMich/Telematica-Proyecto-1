@@ -1,5 +1,6 @@
 #include "mjep.h"
 #include <stdio.h>
+#include <threads.h>
 
 typedef struct {
   int client_socket;
@@ -10,14 +11,27 @@ typedef struct {
 /* El client_socket se modifica cuando entre otro thread */
 
 void manage_client(void *arg) {
-  char buff[BUFFER_SIZE];
+  /* char buff[BUFFER_SIZE]; */
+  int iteration = 0;
   thread_args *args = (thread_args *)arg;
   int own_client_socket =
       args->client_socket; // extract the values becouse other threads
   int index = args->index; // extract the values becouse other threads
-  read_client(own_client_socket, buff);
-  uncapsulate(buff, args->clients_array, index, own_client_socket);
-  pthread_exit(NULL);
+  while (1) {
+    int client_status = 0;
+    char *buff = malloc(BUFFER_SIZE);
+    bzero((void *)buff, BUFFER_SIZE);
+    client_status = read_client(own_client_socket, buff);
+    if (client_status >= 0) {
+      uncapsulate(buff, args->clients_array, index, own_client_socket);
+      iteration++;
+      free(buff);
+    } else {
+      shutdown(own_client_socket, SHUT_RDWR);
+      free(buff);
+      pthread_exit(NULL);
+    }
+  }
 }
 
 int main() {
@@ -32,7 +46,7 @@ int main() {
   for (int i = 0; i < BACKLOG; i++) {
     clients_array[i].username = NULL;
     clients_array[i].socket = 0;
-    clients_array[i].chatting = 0;
+    clients_array[i].chatting = -1;
   }
 
   t_arg.clients_array = clients_array;

@@ -1,6 +1,41 @@
 #include "mjep.h"
 #include <stdio.h>
 #include <string.h>
+#include <sys/socket.h>
+
+typedef struct {
+  int client_1;
+  int client_2;
+} SocketPair;
+
+void manage_chat(void *arg) {
+  char buff[BUFFER_SIZE]; // maximo del mensaje
+  char buff_2[sizeof(buff)];
+  SocketPair *sockets =
+      (SocketPair *)arg;            // convert the argument to a SocketPair
+  int client_1 = sockets->client_1; // recive messages
+  int client_2 = sockets->client_2; // send messages
+  printf("Chatting \n");
+  strcpy(buff, "connected");
+  encapsulate_message(buff); // change for encapsulate ACK
+  if ((send(client_1, buff, sizeof(buff), 0)) < 0) {
+    printf("Message not sent...\n");
+  }
+  while (1) {
+    bzero((void *)buff, BUFFER_SIZE);
+    bzero((void *)buff_2, BUFFER_SIZE);
+    int client_status = read_client(client_1, buff);
+    if (client_status >= 0) {
+      // TODO: DESENCAPSULAR EL MENSAJE, ANALIZARLO Y ENVIARLO
+      send(client_2, buff, sizeof(buff), 0);
+    } else {
+      shutdown(client_1, SHUT_RDWR);
+      pthread_exit(NULL);
+    }
+
+    bzero((void *)buff, sizeof(buff));
+  }
+}
 
 void send_users(client *client_array, char *response) {
   for (int i = 0; i < BACKLOG; i++) {
@@ -28,9 +63,45 @@ void manage_register(char *body, client *client_array, int index,
   encapsulate_ack(response);
   send(client_socket, response,
        (MAX_LEN_USERNAME * BACKLOG) + BUFFER_SIZE_HEADER, 0);
-  for (int i = 0; i < BACKLOG; i++) {
-    if (client_array[i].username != NULL) {
-      printf("%s \n", client_array[i].username);
+}
+
+void manage_connect(char *body, client *client_array, int index,
+                    int *client_socket) {
+  if ((strcmp(body, "-1") == 0)) // refresh
+  {
+
+    char response[MAX_LEN_USERNAME * BACKLOG] = {0};
+    send_users(client_array, response);
+    encapsulate_ack(response);
+    send(*client_socket, response,
+         (MAX_LEN_USERNAME * BACKLOG) + BUFFER_SIZE_HEADER, 0);
+  } else // connect with a user
+  {
+    client_array[index].chatting = atoi(body);
+    if (index == atoi(body)) {
+      // Si el numero que el ingresa es mayor que el BACKLOG entonces hay nack
+      printf("Can't chat with yourself\n");
+      client_array[index].chatting = -1;
+      char response[BUFFER_SIZE_HEADER] = {0};
+      encapsulate_nack(response);
+      send(*client_socket, response, BUFFER_SIZE_HEADER, 0);
+      return;
+    }
+    int i = 0;
+    for (;;) {
+      if (i == BACKLOG) {
+        // numero de repeticiones de busqueda
+        i = 0;
+      }
+      if (client_array[i].chatting == index && i != index) {
+        printf("Found a chat to create %d and %d\n", index, i);
+        SocketPair *sockets = (SocketPair *)malloc(sizeof(SocketPair));
+        sockets->client_1 = client_array[index].socket;
+        sockets->client_2 = client_array[i].socket;
+        manage_chat((void *)sockets);
+        break;
+      }
+      i++;
     }
   }
 }
@@ -93,20 +164,19 @@ void analyze_header(char *header, char *body, client *client_array, int index,
   if ((strcmp(header, "REGISTER") == 0)) {
     manage_register(body, client_array, index, client_socket);
     printf("-----registered----- \n");
-
   } else if ((strcmp(header, "CONNECT") == 0)) {
-    printf("CON\n");
-    // Busca en la estructura de datos el body
-    // Si lo encuentra crea la pareja de clientes
+    manage_connect(body, client_array, index, &client_socket);
   } else if ((strcmp(header, "MESSAGE") == 0)) {
     printf("MESS\n");
     // Lee el body, lo encapsula y lo manda al otro cliente
   } else if ((strcmp(header, "EXIT") == 0)) {
-    printf("EX\n");
-    // Rompe la pareja de clientes
+    printf("EXI\n");
   } else if ((strcmp(header, "DISCONNECT") == 0)) {
     printf("DIS\n");
-    // Mata al cliente
+    // TODO: Remove from array
+    printf("Disconnecting chat with client socket %d\n", client_socket);
+    shutdown(client_socket, SHUT_RDWR);
+    pthread_exit(NULL);
   }
 }
 
@@ -119,14 +189,21 @@ void uncapsulate(char *buff, client *client_array, int index,
   token = strtok(NULL, header);
   strcpy(body, token);
   body[strcspn(body, "\n")] = '\0';
-  printf("header: %s body: %s \n", header, body);
   analyze_header(header, body, client_array, index, client_socket);
 }
 
-void read_client(int client_socket, char *buff) {
-  bzero((void *)buff, BUFFER_SIZE);
+int read_client(int client_socket, char *buff) {
   printf("Reading from socket %d\n", client_socket);
-  recv(client_socket, buff, BUFFER_SIZE, 0);
+  int recv_len = recv(client_socket, buff, BUFFER_SIZE, 0);
+  if (recv_len == 0) {
+    printf("Client disconnected %d\n", client_socket);
+    return -1;
+  }
+  if (recv_len < 0) {
+    perror("recv failed...\n");
+    return -1;
+  };
+  return recv_len;
 }
 
 void encapsulate_register(char *msg) {
@@ -164,4 +241,24 @@ void encapsulate_ack(char *msg) {
       "ACK ";
   strcat(encapsulated_msg, msg);
   strcpy(msg, encapsulated_msg);
+}
+
+void encapsulate_nack(char *msg) {
+  char encapsulated_msg[(MAX_LEN_USERNAME * BACKLOG) + BUFFER_SIZE_HEADER] =
+      "NACK ";
+  strcat(encapsulated_msg, msg);
+  strcpy(msg, encapsulated_msg);
+}
+
+void uncapsulate_client(char *buff, char *header, char *body) {
+  char *space = strchr(buff, ' ');
+  if (space != NULL) {
+    *space = '\0'; // terminate the header string
+    strcpy(header, buff);
+    strcpy(body, space + 1); // copy the body string
+  } else {
+    // handle the case where there is no space in the buffer
+    strcpy(header, buff);
+    body[0] = '\0'; // empty body string
+  }
 }

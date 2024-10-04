@@ -3,31 +3,46 @@
 #include <stdio.h>
 #include <string.h>
 
-void listen_for_server_messages(void *server_socket) {
+void listen_for_server_messages(void *server_socket)
+{
   char buffer[BUFFER_SIZE];
   char header[BUFFER_SIZE_HEADER];
   char body[MAX_LEN_USERNAME * BACKLOG];
   int *s_socket = (int *)server_socket;
-  while (1) {
+  while (1)
+  {
     bzero((void *)buffer, sizeof(buffer));
-    if (recv(*s_socket, buffer, sizeof(buffer), 0) < 0) {
+    if (recv(*s_socket, buffer, sizeof(buffer), 0) < 0)
+    {
       printf("Unable to receive the message...\n");
     }
     uncapsulate_client(buffer, header, body);
-    if ((strcmp(header, "ACK")) == 0) { // ask to wich user to connect
+    if ((strcmp(header, "ACK")) == 0)
+    {                             // ask to wich user to connect
+      printf("\033[2J\033[1;1H"); // clear the console
       printf("Users available to connect: \n");
       printf("%s\n", body);
       bzero((void *)buffer, sizeof(buffer));
       printf("-1 to refresh: \n");
       printf("Connect with: \n");
-    } else if ((strcmp(header, "NACK")) == 0) {
+    }
+    else if ((strcmp(header, "NACK")) == 0)
+    {
       printf("NACK recieved\n");
       printf("Send a key to RESTART...\n");
       exit(0);
       break;
-    } else if ((strcmp(header, "MESSAGE") == 0)) { // ask for message
-      printf(">%s\n", body); // print message from the other user
-    } else if ((strcmp(header, "DISCONNECT") == 0)) {
+    }
+    else if ((strcmp(header, "MESSAGE") == 0))
+    {
+      // ask for message
+      if (strcmp(body, "connected") == 0)
+        printf("\033[2J\033[1;1H"); // when connect clear the console
+      printf("*** %s\n", body);     // print message from the other user
+      bzero((void *)buffer, sizeof(buffer));
+    }
+    else if ((strcmp(header, "DISCONNECT") == 0))
+    {
       printf("Disconnecting chat with client socket %d\n", *s_socket);
       break;
     }
@@ -36,44 +51,60 @@ void listen_for_server_messages(void *server_socket) {
   pthread_exit(NULL);
 }
 
-void listen_for_client_messages(void *server_socket) {
-  char buffer[BUFFER_SIZE];
-  char *user_input;
-  int flag = 0;
-  user_input = "-1";
-  int *s_socket = (int *)server_socket;
-  int n;
-  while (1) {
-    if (flag != 0) {
+void listen_for_client_messages(void *server_socket)
+{
+  while (1)
+  {
+    char buffer[BUFFER_SIZE];
+    char *user_input;
+    int flag = 0;
+    user_input = "-1";
+    int *s_socket = (int *)server_socket;
+    int n;
+    while (1)
+    {
+      if (flag != 0)
+      {
+        bzero((void *)buffer, sizeof(buffer));
+        break;
+      }
       bzero((void *)buffer, sizeof(buffer));
-      break;
+      printf("Asking for index of client to chat...\n");
+      n = 0;
+      while ((buffer[n++] = getchar()) != '\n')
+        ;
+      buffer[strcspn(buffer, "\n")] = '\0';
+      user_input = buffer;
+      flag = strcmp(user_input, "-1");
+      encapsulate_connect(buffer);
+      if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0)
+      {
+        printf("Message not sent...\n");
+      }
     }
-    bzero((void *)buffer, sizeof(buffer));
-    printf("Asking for index of client to chat...\n");
-    n = 0;
-    while ((buffer[n++] = getchar()) != '\n')
-      ;
-    buffer[strcspn(buffer, "\n")] = '\0';
-    user_input = buffer;
-    flag = strcmp(user_input, "-1");
-    encapsulate_connect(buffer);
-    if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0) {
-      printf("Message not sent...\n");
-    }
-  }
-  while (1) { // Ask for chat messages
-    n = 0;
-    /* printf("Asking for client messages...\n"); */
-    while ((buffer[n++] = getchar()) != '\n')
-      ;
-    encapsulate_message(buffer);
-    if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0) {
-      printf("Message not sent...\n");
+    while (1)
+    { // Ask for chat messages
+      bzero((void *)buffer, sizeof(buffer));
+      n = 0;
+      /* printf("Asking for client messages...\n"); */
+      while ((buffer[n++] = getchar()) != '\n')
+        ;
+      char *msg = strdup(buffer);
+      encapsulate_message(buffer);
+      if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0)
+      {
+        printf("Message not sent...\n");
+      }
+      if (strcmp(msg, "exit\n") == 0)
+      {
+        break;
+      }
     }
   }
 }
 
-int main() {
+int main()
+{
   char hostname[30];
   // printf("Enter the ip address: \n");
   // scanf("%s", hostname);
@@ -84,10 +115,12 @@ int main() {
 
   // socket create and verification
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  if (sockfd == -1) {
+  if (sockfd == -1)
+  {
     printf("socket creation failed...\n");
     exit(0);
-  } else
+  }
+  else
     printf("Socket successfully created..\n");
   bzero(&servaddr, sizeof(servaddr));
 
@@ -97,10 +130,12 @@ int main() {
   servaddr.sin_port = htons(PORT);
 
   // connect the client socket to server socket
-  if (connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) != 0) {
+  if (connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) != 0)
+  {
     printf("connection with the server failed...\n");
     exit(0);
-  } else
+  }
+  else
     printf("connected to the server..\n");
 
   char buffer[MAX_LEN_USERNAME * BACKLOG];
@@ -110,7 +145,8 @@ int main() {
     ;
   encapsulate_register(buffer);
 
-  if ((send(sockfd, buffer, sizeof(buffer), 0)) < 0) {
+  if ((send(sockfd, buffer, sizeof(buffer), 0)) < 0)
+  {
     printf("Message not sent...\n");
   }
   // registered

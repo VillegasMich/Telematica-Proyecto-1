@@ -1,6 +1,6 @@
 #include "mjep.h"
 #include <stdio.h>
-#include <threads.h>
+#include <pthread.h>
 
 typedef struct {
   int client_socket;

@@ -1,7 +1,13 @@
 #include "mjep.h"
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 typedef struct {
   int client_1;
@@ -26,8 +32,10 @@ void manage_chat(void *arg) {
     bzero((void *)buff_2, BUFFER_SIZE);
     int client_status = read_client(client_1, buff);
     if (client_status >= 0) {
-      // TODO: DESENCAPSULAR EL MENSAJE, ANALIZARLO Y ENVIARLO
-      send(client_2, buff, sizeof(buff), 0);
+      int status = uncapsulate_server(buff, NULL, -1, client_1, client_2);
+      if (status == -1) {
+        break;
+      }
     } else {
       shutdown(client_1, SHUT_RDWR);
       pthread_exit(NULL);
@@ -37,9 +45,9 @@ void manage_chat(void *arg) {
   }
 }
 
-void send_users(client *client_array, char *response) {
+void send_users(client *client_array, char *response, int index) {
   for (int i = 0; i < BACKLOG; i++) {
-    if (client_array[i].username != NULL) {
+    if (client_array[i].username != NULL && i != index) {
       char i_str[10];
       sprintf(i_str, "%d-", i);
       strcat(response, i_str);
@@ -57,7 +65,7 @@ void manage_register(char *body, client *client_array, int index,
     strcpy(response, "0");
   } else {
     strcpy(client_array[index].username, body);
-    send_users(client_array, response);
+    send_users(client_array, response, index);
     client_array[index].socket = client_socket;
   }
   encapsulate_ack(response);
@@ -71,7 +79,7 @@ void manage_connect(char *body, client *client_array, int index,
   {
 
     char response[MAX_LEN_USERNAME * BACKLOG] = {0};
-    send_users(client_array, response);
+    send_users(client_array, response, index);
     encapsulate_ack(response);
     send(*client_socket, response,
          (MAX_LEN_USERNAME * BACKLOG) + BUFFER_SIZE_HEADER, 0);
@@ -88,6 +96,7 @@ void manage_connect(char *body, client *client_array, int index,
       return;
     }
     int i = 0;
+    printf("Esperando a que el otro usuario se conecte\n");
     for (;;) {
       if (i == BACKLOG) {
         // numero de repeticiones de busqueda
@@ -98,6 +107,8 @@ void manage_connect(char *body, client *client_array, int index,
         SocketPair *sockets = (SocketPair *)malloc(sizeof(SocketPair));
         sockets->client_1 = client_array[index].socket;
         sockets->client_2 = client_array[i].socket;
+        client_array[index].chatting = -1;
+        client_array[i].chatting = -1;
         manage_chat((void *)sockets);
         break;
       }
@@ -106,7 +117,34 @@ void manage_connect(char *body, client *client_array, int index,
   }
 }
 
-void connect_to_server() { printf("Connecting to server\n"); }
+void connect_to_server(int *client_socket) {
+  char hostname[15];
+  strcpy(hostname, HOSTNAME);
+
+  struct sockaddr_in servaddr, cli;
+
+  // socket create and verification
+  *client_socket = socket(AF_INET, SOCK_STREAM, 0);
+  if (*client_socket == -1) {
+    printf("socket creation failed...\n");
+    exit(0);
+  } else
+    printf("Socket successfully created..\n");
+  bzero(&servaddr, sizeof(servaddr));
+
+  // assign IP, PORT
+  servaddr.sin_family = AF_INET;
+  servaddr.sin_addr.s_addr = inet_addr(hostname);
+  servaddr.sin_port = htons(PORT);
+
+  // connect the client socket to server socket
+  if (connect(*client_socket, (struct sockaddr *)&servaddr, sizeof(servaddr)) !=
+      0) {
+    printf("connection with the server failed...\n");
+    exit(0);
+  } else
+    printf("connected to the server..\n");
+}
 
 // initialize the server Socket - main
 void initialize_conenction(int *server_socket) {
@@ -158,30 +196,44 @@ void accept_connection(int *server_socket, int *client_socket) {
   }
 }
 
-void analyze_header(char *header, char *body, client *client_array, int index,
-                    int client_socket) {
-  /* printf("Analizing with n_thread of %d \n", n_thread); */
+int analyze_header_server(char *header, char *body, client *client_array,
+                          int index, int client_socket, int client_socket_2) {
   if ((strcmp(header, "REGISTER") == 0)) {
     manage_register(body, client_array, index, client_socket);
     printf("-----registered----- \n");
   } else if ((strcmp(header, "CONNECT") == 0)) {
     manage_connect(body, client_array, index, &client_socket);
   } else if ((strcmp(header, "MESSAGE") == 0)) {
-    printf("MESS\n");
-    // Lee el body, lo encapsula y lo manda al otro cliente
+    char response[BUFFER_SIZE];
+    strcpy(response, body);
+    encapsulate_message(response);
+    if ((send(client_socket_2, response, sizeof(response), 0)) < 0) {
+      printf("Message not sent...\n");
+    }
   } else if ((strcmp(header, "EXIT") == 0)) {
-    printf("EXI\n");
+    char response[BUFFER_SIZE];
+    strcpy(response, "The other client has exited the chat, please exit...");
+    encapsulate_exit(response);
+    if ((send(client_socket_2, response, sizeof(response), 0)) < 0) {
+      printf("Message not sent...\n");
+    }
+    return -1;
   } else if ((strcmp(header, "DISCONNECT") == 0)) {
-    printf("DIS\n");
     // TODO: Remove from array
     printf("Disconnecting chat with client socket %d\n", client_socket);
-    shutdown(client_socket, SHUT_RDWR);
-    pthread_exit(NULL);
+    char response[BUFFER_SIZE];
+    strcpy(response, "The other client has exited the chat, please exit...");
+    encapsulate_exit(response);
+    if ((send(client_socket_2, response, sizeof(response), 0)) < 0) {
+      printf("Message not sent...\n");
+    }
+    return -1;
   }
+  return 0;
 }
 
-void uncapsulate(char *buff, client *client_array, int index,
-                 int client_socket) {
+int uncapsulate_server(char *buff, client *client_array, int index,
+                       int client_socket, int client_socket_2) {
   char header[BUFFER_SIZE_HEADER], body[MAX_LEN_USERNAME * BACKLOG];
   char *token;
   token = strtok(buff, " ");
@@ -189,18 +241,20 @@ void uncapsulate(char *buff, client *client_array, int index,
   token = strtok(NULL, header);
   strcpy(body, token);
   body[strcspn(body, "\n")] = '\0';
-  analyze_header(header, body, client_array, index, client_socket);
+  return analyze_header_server(header, body, client_array, index, client_socket,
+                               client_socket_2);
 }
 
 int read_client(int client_socket, char *buff) {
-  printf("Reading from socket %d\n", client_socket);
   int recv_len = recv(client_socket, buff, BUFFER_SIZE, 0);
   if (recv_len == 0) {
     printf("Client disconnected %d\n", client_socket);
+    // TODO: Remove from array
     return -1;
   }
   if (recv_len < 0) {
     perror("recv failed...\n");
+    // TODO: Remove from array
     return -1;
   };
   return recv_len;
@@ -250,15 +304,46 @@ void encapsulate_nack(char *msg) {
   strcpy(msg, encapsulated_msg);
 }
 
-void uncapsulate_client(char *buff, char *header, char *body) {
+int analize_header_client(char *buffer, char *header, char *body) {
+  if ((strcmp(header, "ACK")) == 0) { // ask to wich user to connect
+    printf("\033[2J\033[1;1H");
+    printf("Type 'disconnect' in a chat to end the program\n");
+    printf("Type 'exit' in a chat to exit that chat\n");
+    printf("Users available to connect: \n");
+    printf("-1 to refresh: \n");
+    printf("%s\n", body);
+    bzero((void *)buffer, sizeof(buffer));
+    printf("Connect with: \n");
+  } else if ((strcmp(header, "NACK")) == 0) {
+    printf("NACK recieved\n");
+    printf("Send a key to RESTART...\n");
+    // TODO: eliminate from clients array
+    return -1;
+  } else if ((strcmp(header, "MESSAGE") == 0)) { // ask for message
+    if (strcmp(body, "connected") == 0)
+      printf("\033[2J\033[1;1H"); // when connect clear the console
+    printf(">>> %s\n", body);     // print message from the other user
+  } else if ((strcmp(header, "DISCONNECT") == 0)) {
+    printf("Disconnecting chat with client\n");
+    printf("Send a key to RESTART...\n");
+    // TODO: eliminate from clients array
+    return -1;
+  } else if ((strcmp(header, "EXIT") == 0)) {
+    printf(">>> %s\n", body); // print message from the other user
+  }
+  return 0;
+}
+
+int uncapsulate_client(char *buff, char *header, char *body) {
   char *space = strchr(buff, ' ');
   if (space != NULL) {
     *space = '\0'; // terminate the header string
     strcpy(header, buff);
     strcpy(body, space + 1); // copy the body string
   } else {
-    // handle the case where there is no space in the buffer
     strcpy(header, buff);
     body[0] = '\0'; // empty body string
   }
+  int result = analize_header_client(buff, header, body);
+  return result;
 }

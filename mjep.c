@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -14,6 +15,12 @@ typedef struct {
   int client_2;
 } SocketPair;
 
+/*
+ * This function manages the chat between two clients
+ *
+ * Input:
+ *    - void *arg: The socket pair. Mandatory
+ * */
 void manage_chat(void *arg) {
   char buff[BUFFER_SIZE]; // maximo del mensaje
   char buff_2[sizeof(buff)];
@@ -30,7 +37,7 @@ void manage_chat(void *arg) {
   while (1) {
     bzero((void *)buff, BUFFER_SIZE);
     bzero((void *)buff_2, BUFFER_SIZE);
-    int client_status = read_client(client_1, buff);
+    int client_status = read_socket(client_1, buff);
     if (client_status >= 0) {
       int status = uncapsulate_server(buff, NULL, -1, client_1, client_2);
       if (status == -1) {
@@ -45,6 +52,14 @@ void manage_chat(void *arg) {
   }
 }
 
+/*
+ * This function sends the list of users to the client (except himself)
+ *
+ * Input:
+ *    - client *client_array: The array of clients
+ *    - char *response: The response to send
+ *    - int index: The index of the own client
+ * */
 void send_users(client *client_array, char *response, int index) {
   for (int i = 0; i < BACKLOG; i++) {
     if (client_array[i].username != NULL && i != index) {
@@ -57,6 +72,15 @@ void send_users(client *client_array, char *response, int index) {
   }
 }
 
+/*
+ * This function manages the register of a new user
+ *
+ * Input:
+ *    - char *body: The body of the request
+ *    - client *client_array: The array of clients
+ *    - int index: The index of the own client
+ *    - int client_socket: The socket of the client
+ * */
 void manage_register(char *body, client *client_array, int index,
                      int client_socket) {
   char response[MAX_LEN_USERNAME * BACKLOG] = {0};
@@ -73,6 +97,15 @@ void manage_register(char *body, client *client_array, int index,
        (MAX_LEN_USERNAME * BACKLOG) + BUFFER_SIZE_HEADER, 0);
 }
 
+/*
+ * This function manages the connect request
+ *
+ * Input:
+ *    - char *body: The body of the request
+ *    - client *client_array: The array of clients
+ *    - int index: The index of the own client
+ *    - int *client_socket: The socket of the client
+ * */
 void manage_connect(char *body, client *client_array, int index,
                     int *client_socket) {
   if ((strcmp(body, "-1") == 0)) // refresh
@@ -85,9 +118,13 @@ void manage_connect(char *body, client *client_array, int index,
          (MAX_LEN_USERNAME * BACKLOG) + BUFFER_SIZE_HEADER, 0);
   } else // connect with a user
   {
-    client_array[index].chatting = atoi(body);
-    if (index == atoi(body)) {
-      // Si el numero que el ingresa es mayor que el BACKLOG entonces hay nack
+    int input_from_client = atoi(body);
+    client_array[index].chatting = input_from_client;
+    // TODO: Si el numero que el ingresa es mayor que el BACKLOG entonces hay
+    // nack
+    // TODO: Si el numero que ingrsa es mayor al numero de usuarios que hay
+    // entonces hay nack
+    if (index == input_from_client) {
       printf("Can't chat with yourself\n");
       client_array[index].chatting = -1;
       char response[BUFFER_SIZE_HEADER] = {0};
@@ -95,28 +132,41 @@ void manage_connect(char *body, client *client_array, int index,
       send(*client_socket, response, BUFFER_SIZE_HEADER, 0);
       return;
     }
-    int i = 0;
-    printf("Esperando a que el otro usuario se conecte\n");
+    /* int i = 0; */
+    int flag = 1;
     for (;;) {
-      if (i == BACKLOG) {
-        // numero de repeticiones de busqueda
-        i = 0;
-      }
-      if (client_array[i].chatting == index && i != index) {
-        printf("Found a chat to create %d and %d\n", index, i);
+      if (client_array[input_from_client].chatting == index) {
+        printf("Found a chat to create %d and %d\n", index, input_from_client);
         SocketPair *sockets = (SocketPair *)malloc(sizeof(SocketPair));
         sockets->client_1 = client_array[index].socket;
-        sockets->client_2 = client_array[i].socket;
+        sockets->client_2 = client_array[input_from_client].socket;
         client_array[index].chatting = -1;
-        client_array[i].chatting = -1;
+        client_array[input_from_client].chatting = -1;
         manage_chat((void *)sockets);
         break;
       }
-      i++;
+      if (flag == 1) {
+        // TODO: Setear un tiempo de espera (numero de ciclos maximos)
+        char response[BUFFER_SIZE] = {0};
+        strcpy(response, "Wating for the other client to select you...\n");
+        encapsulate_message(response);
+        send(*client_socket, response, BUFFER_SIZE, 0);
+        printf("Can't chat with user %d\n", input_from_client);
+        flag = 0;
+      }
+      /* i++; */
     }
   }
 }
 
+/*
+ * This function creates the connection with the server
+ *
+ * Use on the client side
+ *
+ * Input:
+ *    - int *client_socket: The socket of the client
+ * */
 void connect_to_server(int *client_socket) {
   char hostname[15];
   strcpy(hostname, HOSTNAME);
@@ -146,7 +196,14 @@ void connect_to_server(int *client_socket) {
     printf("connected to the server..\n");
 }
 
-// initialize the server Socket - main
+/*
+ * This function initializes the connection for the server
+ *
+ * Use on the server side
+ *
+ * Input:
+ *    - int *server_socket: The socket of the server
+ * */
 void initialize_conenction(int *server_socket) {
   printf("Creating connection\n");
   struct sockaddr_in servaddr;
@@ -182,6 +239,15 @@ void initialize_conenction(int *server_socket) {
   }
 }
 
+/*
+ * This function accepts the connection with the client
+ *
+ * Use on the server side
+ *
+ * Input:
+ *    - int *server_socket: The socket of the server
+ *    - int *client_socket: The socket of the client
+ * */
 void accept_connection(int *server_socket, int *client_socket) {
   struct sockaddr client;
   unsigned int len;
@@ -196,6 +262,22 @@ void accept_connection(int *server_socket, int *client_socket) {
   }
 }
 
+/*
+ * This function analyzes the header of the message
+ *
+ * Use on the server side
+ *
+ * Input:
+ *    - char *header: The header of the message. Mandatory
+ *    - char *body: The body of the message. Mandatory
+ *    - client *client_array: The array of clients. If no need send NULL
+ *    - int index: The index of the client. If no need send -1
+ *    - int client_socket: The socket of the client. Mandatory
+ *    - int client_socket_2: The socket of the other client. If no need use -1
+ *
+ * Output:
+ *    - int: The status of the message (0: success, -1: exit/disconnect)
+ * */
 int analyze_header_server(char *header, char *body, client *client_array,
                           int index, int client_socket, int client_socket_2) {
   if ((strcmp(header, "REGISTER") == 0)) {
@@ -203,14 +285,16 @@ int analyze_header_server(char *header, char *body, client *client_array,
     printf("-----registered----- \n");
   } else if ((strcmp(header, "CONNECT") == 0)) {
     manage_connect(body, client_array, index, &client_socket);
-  } else if ((strcmp(header, "MESSAGE") == 0)) {
+  } else if ((strcmp(header, "MESSAGE") ==
+              0)) { // TODO: Create manage message function
     char response[BUFFER_SIZE];
     strcpy(response, body);
     encapsulate_message(response);
     if ((send(client_socket_2, response, sizeof(response), 0)) < 0) {
       printf("Message not sent...\n");
     }
-  } else if ((strcmp(header, "EXIT") == 0)) {
+  } else if ((strcmp(header, "EXIT") ==
+              0)) { // TODO: Create manage exit function
     char response[BUFFER_SIZE];
     strcpy(response, "The other client has exited the chat, please exit...");
     encapsulate_exit(response);
@@ -231,7 +315,19 @@ int analyze_header_server(char *header, char *body, client *client_array,
   }
   return 0;
 }
-
+/*
+ * This function uncapsulates the message reciived and analizes it
+ *
+ * Input:
+ *    - char *buff: The message received. Mandatory
+ *    - client *client_array: The array of clients. If no need send NULL
+ *    - int index: The index of the client. If no need send -1
+ *    - int client_socket: The socket of the client. Mandatory
+ *    - int client_socket_2: The socket of the other client. if no need send -1
+ *
+ * Output:
+ *    - int: The status of the message (0: success, -1: exit/disconnect)
+ * */
 int uncapsulate_server(char *buff, client *client_array, int index,
                        int client_socket, int client_socket_2) {
   char header[BUFFER_SIZE_HEADER], body[MAX_LEN_USERNAME * BACKLOG];
@@ -245,7 +341,17 @@ int uncapsulate_server(char *buff, client *client_array, int index,
                                client_socket_2);
 }
 
-int read_client(int client_socket, char *buff) {
+/*
+ * This function reads the socket
+ *
+ * Input:
+ *    - int client_socket: The socket of the client. Mandatory
+ *    - char *buff: The buffer to store the message. Mandatory
+ *
+ * Output:
+ *    - int: The status of the message (0: success, -1: exit/disconnect)
+ * */
+int read_socket(int client_socket, char *buff) {
   int recv_len = recv(client_socket, buff, BUFFER_SIZE, 0);
   if (recv_len == 0) {
     printf("Client disconnected %d\n", client_socket);
@@ -304,6 +410,19 @@ void encapsulate_nack(char *msg) {
   strcpy(msg, encapsulated_msg);
 }
 
+/*
+ * This function analizes the header of the message
+ *
+ * Use on client side
+ *
+ * Input:
+ *    - char *buffer: The message received. Mandatory
+ *    - char *header: The header of the message. Mandatory
+ *    - char *body: The body of the message. Mandatory
+ *
+ * Output:
+ *    - int: The status of the message (0: success, -1: exit/disconnect)
+ * */
 int analize_header_client(char *buffer, char *header, char *body) {
   if ((strcmp(header, "ACK")) == 0) { // ask to wich user to connect
     printf("\033[2J\033[1;1H");
@@ -317,7 +436,6 @@ int analize_header_client(char *buffer, char *header, char *body) {
   } else if ((strcmp(header, "NACK")) == 0) {
     printf("NACK recieved\n");
     printf("Send a key to RESTART...\n");
-    // TODO: eliminate from clients array
     return -1;
   } else if ((strcmp(header, "MESSAGE") == 0)) { // ask for message
     if (strcmp(body, "connected") == 0)
@@ -326,7 +444,6 @@ int analize_header_client(char *buffer, char *header, char *body) {
   } else if ((strcmp(header, "DISCONNECT") == 0)) {
     printf("Disconnecting chat with client\n");
     printf("Send a key to RESTART...\n");
-    // TODO: eliminate from clients array
     return -1;
   } else if ((strcmp(header, "EXIT") == 0)) {
     printf(">>> %s\n", body); // print message from the other user
@@ -334,6 +451,19 @@ int analize_header_client(char *buffer, char *header, char *body) {
   return 0;
 }
 
+/*
+ * This function uncapsulates the message
+ *
+ * Use on client side
+ *
+ * Input:
+ *    - char *buff: The message received. Mandatory
+ *    - char *header: The header of the message. Mandatory
+ *    - char *body: The body of the message. Mandatory
+ *
+ * Output:
+ *    - int: The status of the message (0: success, -1: exit/disconnect)
+ * */
 int uncapsulate_client(char *buff, char *header, char *body) {
   char *space = strchr(buff, ' ');
   if (space != NULL) {

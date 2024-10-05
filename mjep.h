@@ -14,9 +14,9 @@ typedef struct {
   int chatting;
 } client;
 
-void connect_to_server(int *sockfd);                            // client
-void initialize_conenction(int *sockfd);                        // server
-void accept_connection(int *server_socket, int *client_socket); // server
+void connect_to_server(int *sockfd);
+void initialize_conenction(int *sockfd);
+void accept_connection(int *server_socket, int *client_socket);
 void encapsulate_register(char *msg);
 void encapsulate_connect(char *msg);
 void encapsulate_message(char *msg);
@@ -25,7 +25,7 @@ void encapsulate_ack(char *msg);
 void encapsulate_nack(char *msg);
 void encapsulate_disconnect(char *msg);
 int uncapsulate_server(char *buff, client *client_array, int index,
-                       int client_socket, int client_socket_2); // Only server
+                       int client_socket, int client_socket_2);
 int uncapsulate_client(char *buff, char *header, char *body);
-int read_client(int client_socket, char *buff);
+int read_socket(int client_socket, char *buff);
 #endif

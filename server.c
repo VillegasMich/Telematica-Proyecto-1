@@ -21,13 +21,12 @@ void manage_client(void *arg) {
     int client_status = 0;
     char *buff = malloc(BUFFER_SIZE);
     bzero((void *)buff, BUFFER_SIZE);
-    client_status = read_client(own_client_socket, buff);
+    client_status = read_socket(own_client_socket, buff);
     if (client_status >= 0) {
       uncapsulate_server(buff, args->clients_array, index, own_client_socket,
                          -1);
       free(buff);
     } else {
-      /* shutdown(own_client_socket, SHUT_RDWR); */
       free(buff);
       pthread_exit(NULL);
     }

@@ -15,7 +15,7 @@ void listen_for_server_messages(void *server_socket) {
   int *s_socket = (int *)server_socket;
   while (1) {
     bzero((void *)buffer, BUFFER_SIZE);
-    int socket_status = read_client(*s_socket, buffer);
+    int socket_status = read_socket(*s_socket, buffer);
     if (socket_status < 0) {
       break;
     }

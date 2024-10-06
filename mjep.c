@@ -354,7 +354,7 @@ int uncapsulate_server(char *buff, client *client_array, int index,
 int read_socket(int client_socket, char *buff) {
   int recv_len = recv(client_socket, buff, BUFFER_SIZE, 0);
   if (recv_len == 0) {
-    printf("Client disconnected %d\n", client_socket);
+    printf("Client disconnected with socket number: %d\n", client_socket);
     // TODO: Remove from array
     return -1;
   }

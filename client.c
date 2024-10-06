@@ -8,18 +8,19 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-void listen_for_server_messages(void *server_socket) {
+void listen_for_server_messages(void *server_socket, client *clients_array, 
+  int index, int client_socket) {
   char buffer[BUFFER_SIZE];
   char header[BUFFER_SIZE_HEADER];
   char body[MAX_LEN_USERNAME * BACKLOG];
   int *s_socket = (int *)server_socket;
   while (1) {
     bzero((void *)buffer, BUFFER_SIZE);
-    int socket_status = read_client(*s_socket, buffer);
+    int socket_status = read_client(*s_socket, buffer, clients_array, index);
     if (socket_status < 0) {
       break;
     }
-    int result = uncapsulate_client(buffer, header, body);
+    int result = uncapsulate_client(buffer, header, body, clients_array, index, client_socket);
     if (result == -1) {
       break;
     }

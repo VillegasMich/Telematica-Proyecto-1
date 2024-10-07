@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <sys/socket.h>
-#include <threads.h>
+
 
 typedef struct {
   int client_socket;

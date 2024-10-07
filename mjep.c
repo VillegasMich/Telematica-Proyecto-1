@@ -9,6 +9,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+int eliminados = 0;
+
 typedef struct {
   int client_1;
   int client_2;
@@ -45,11 +47,22 @@ void manage_chat(void *arg, client *client_array, int index) {
     bzero((void *)buff, sizeof(buff));
   }
 }
+int buscar_por_socket(client *client_array, int size, int socket_buscar) {
+    for (int i = 0; i < size; i++) {
+        if (client_array[i].socket == socket_buscar) {
+            return i; 
+        }
+    }
+    return -1; 
+}
+
 
 void manage_disconnect(char *body, client *client_array, int index, int client_socket) {
     printf("Function disconnect \n");
-    
+    index = buscar_por_socket(client_array, BACKLOG, client_socket);
+    printf("index \n");
     printf("%i", index);
+
     if (client_array[index].username != NULL) {
         free(client_array[index].username);
         client_array[index].username = NULL;
@@ -57,7 +70,9 @@ void manage_disconnect(char *body, client *client_array, int index, int client_s
     
 
     for (int j = index; j < BACKLOG - 1; ++j) {
-        client_array[j] = client_array[j + 1];
+        client_array[j].username = client_array[j + 1].username;
+        client_array[j].socket = client_array[j + 1].socket;
+        client_array[j].chatting = client_array[j + 1].chatting;
     }
 
 
@@ -72,6 +87,7 @@ void manage_disconnect(char *body, client *client_array, int index, int client_s
     }
 
     close(client_socket);
+    eliminados++;
 }
 
 void send_users(client *client_array, char *response, int index) {
@@ -354,7 +370,7 @@ int analize_header_client(char *buffer, char *header, char *body, client *client
     printf("NACK recieved\n");
     printf("Send a key to RESTART...\n");
     printf("fuinction: \n");
-    //manage_disconnect(buffer, client_array, index, client_socket);
+    manage_disconnect(buffer, client_array, index, client_socket);
     return -1;
   } else if ((strcmp(header, "MESSAGE") == 0)) { // ask for message
     if (strcmp(body, "connected") == 0)
@@ -364,7 +380,7 @@ int analize_header_client(char *buffer, char *header, char *body, client *client
     printf("Disconnecting chat with client\n");
     printf("Send a key to RESTART...\n");
     printf("function: \n");
-    //manage_disconnect(buffer, client_array, index, client_socket);
+    manage_disconnect(buffer, client_array, index, client_socket);
     return -1;
   } else if ((strcmp(header, "EXIT") == 0)) {
     printf(">>> %s\n", body); // print message from the other user

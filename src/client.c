@@ -1,3 +1,4 @@
+#include "config.h"
 #include "mjep.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -15,7 +16,7 @@ void listen_for_server_messages(void *server_socket) {
   int *s_socket = (int *)server_socket;
   while (1) {
     bzero((void *)buffer, BUFFER_SIZE);
-    int socket_status = read_socket(*s_socket, buffer);
+    int socket_status = read_socket(*s_socket, buffer, NULL, -1);
     if (socket_status < 0) {
       break;
     }
@@ -74,7 +75,7 @@ void listen_for_client_messages(void *server_socket) {
         pthread_exit(NULL);
       }
       if (strcmp(buffer, "exit") == 0) {
-        encapsulate_exit(buffer); // TODO should be encapsulate exit
+        encapsulate_exit(buffer);
         if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0) {
           printf("Message not sent...\n");
         }

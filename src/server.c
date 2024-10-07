@@ -1,3 +1,4 @@
+#include "config.h"
 #include "mjep.h"
 #include <pthread.h>
 #include <stdio.h>
@@ -21,7 +22,8 @@ void manage_client(void *arg) {
     int client_status = 0;
     char *buff = malloc(BUFFER_SIZE);
     bzero((void *)buff, BUFFER_SIZE);
-    client_status = read_socket(own_client_socket, buff);
+    client_status =
+        read_socket(own_client_socket, buff, args->clients_array, index);
     if (client_status >= 0) {
       uncapsulate_server(buff, args->clients_array, index, own_client_socket,
                          -1);
@@ -52,7 +54,7 @@ int main() {
 
   initialize_conenction(&server_socket);
 
-  while (1) {
+  while (n_thread < BACKLOG) {
     accept_connection(&server_socket, &client_socket);
     t_arg.client_socket = client_socket;
     t_arg.index = index;

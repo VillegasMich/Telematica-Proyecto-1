@@ -1,12 +1,11 @@
 #ifndef MJEP_H
 #define MJEP_H
-#define BUFFER_SIZE_MSG 500
-#define BUFFER_SIZE_HEADER 15
-#define PORT 8080
+#define BUFFER_SIZE_MSG 500   // Buffer size of raw message
+#define BUFFER_SIZE_HEADER 15 // Buffer size of header
+#define PORT 8080             // Port of the protocol
 #define BUFFER_SIZE BUFFER_SIZE_HEADER + BUFFER_SIZE_MSG
-#define MAX_LEN_USERNAME 15
-#define BACKLOG 10
-#define HOSTNAME "127.0.0.1"
+#define MAX_LEN_USERNAME 15 // Max length of username
+#define TIMEUOT_CONN 10000  // 10 seconds time out for try connection
 
 typedef struct {
   char *username;
@@ -27,5 +26,5 @@ void encapsulate_disconnect(char *msg);
 int uncapsulate_server(char *buff, client *client_array, int index,
                        int client_socket, int client_socket_2);
 int uncapsulate_client(char *buff, char *header, char *body);
-int read_socket(int client_socket, char *buff);
+int read_socket(int client_socket, char *buff, client *client_array, int index);
 #endif

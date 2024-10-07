@@ -1,4 +1,5 @@
 #include "mjep.h"
+#include "config.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -7,6 +8,7 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -21,7 +23,7 @@ typedef struct {
  * Input:
  *    - void *arg: The socket pair. Mandatory
  * */
-void manage_chat(void *arg) {
+void manage_chat(void *arg, client *client_array, int index) {
   char buff[BUFFER_SIZE]; // maximo del mensaje
   char buff_2[sizeof(buff)];
   SocketPair *sockets =
@@ -37,9 +39,10 @@ void manage_chat(void *arg) {
   while (1) {
     bzero((void *)buff, BUFFER_SIZE);
     bzero((void *)buff_2, BUFFER_SIZE);
-    int client_status = read_socket(client_1, buff);
+    int client_status = read_socket(client_1, buff, client_array, index);
     if (client_status >= 0) {
-      int status = uncapsulate_server(buff, NULL, -1, client_1, client_2);
+      int status =
+          uncapsulate_server(buff, client_array, index, client_1, client_2);
       if (status == -1) {
         break;
       }
@@ -50,6 +53,38 @@ void manage_chat(void *arg) {
 
     bzero((void *)buff, sizeof(buff));
   }
+}
+
+/*
+ * This function manages the disconnection of a client
+ *
+ * Input:
+ *    - char *body: The body of the message
+ *    - client *client_array: The array of clients
+ *    - int index: The index of the client
+ *    - int client_socket: The socket of the client
+ * */
+void manage_disconnect(char *body, client *client_array, int index,
+                       int client_socket) {
+  if (client_array[index].username != NULL) {
+    free(client_array[index].username);
+    client_array[index].username = NULL;
+    client_array[index].socket = 0;
+    client_array[index].chatting = -1;
+  }
+
+  /* for (int j = index; j < BACKLOG - 1; ++j) { */
+  /*   client_array[j].username = client_array[j + 1].username; */
+  /*   client_array[j].socket = client_array[j + 1].socket; */
+  /*   client_array[j].chatting = client_array[j + 1].chatting; */
+  /* } */
+
+  /* for (int i = 0; i < BACKLOG; ++i) { */
+  /*   if (client_array[i].username != NULL) { */
+  /*     printf("Client %d: %s\n", i + 1, client_array[i].username); */
+  /*   } */
+  /* } */
+  close(client_socket);
 }
 
 /*
@@ -92,9 +127,15 @@ void manage_register(char *body, client *client_array, int index,
     send_users(client_array, response, index);
     client_array[index].socket = client_socket;
   }
-  encapsulate_ack(response);
+  encapsulate_register(response);
   send(client_socket, response,
        (MAX_LEN_USERNAME * BACKLOG) + BUFFER_SIZE_HEADER, 0);
+}
+
+unsigned long millis() {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 }
 
 /*
@@ -113,26 +154,42 @@ void manage_connect(char *body, client *client_array, int index,
 
     char response[MAX_LEN_USERNAME * BACKLOG] = {0};
     send_users(client_array, response, index);
-    encapsulate_ack(response);
+    encapsulate_register(response);
     send(*client_socket, response,
          (MAX_LEN_USERNAME * BACKLOG) + BUFFER_SIZE_HEADER, 0);
   } else // connect with a user
   {
     int input_from_client = atoi(body);
     client_array[index].chatting = input_from_client;
-    // TODO: Si el numero que el ingresa es mayor que el BACKLOG entonces hay
-    // nack
-    // TODO: Si el numero que ingrsa es mayor al numero de usuarios que hay
-    // entonces hay nack
     if (index == input_from_client) {
-      printf("Can't chat with yourself\n");
       client_array[index].chatting = -1;
-      char response[BUFFER_SIZE_HEADER] = {0};
+      char response[BUFFER_SIZE] = {0};
+      strcpy(response, "Can't chat with yourself");
       encapsulate_nack(response);
-      send(*client_socket, response, BUFFER_SIZE_HEADER, 0);
+      manage_disconnect(body, client_array, index, *client_socket);
+      send(*client_socket, response, BUFFER_SIZE, 0);
       return;
     }
-    /* int i = 0; */
+    if (input_from_client < 0 || input_from_client >= BACKLOG) {
+      client_array[index].chatting = -1;
+      char response[BUFFER_SIZE] = {0};
+      strcpy(response, "Incorrect index, please try, again");
+      encapsulate_nack(response);
+      manage_disconnect(body, client_array, index, *client_socket);
+      send(*client_socket, response, BUFFER_SIZE, 0);
+      return;
+    }
+    if (client_array[input_from_client].username == NULL) {
+      client_array[index].chatting = -1;
+      char response[BUFFER_SIZE] = {0};
+      strcpy(response, "User not found, please try, again");
+      encapsulate_nack(response);
+      manage_disconnect(body, client_array, index, *client_socket);
+      send(*client_socket, response, BUFFER_SIZE, 0);
+      return;
+    }
+    unsigned long start_time = millis();   // Record the start time
+    unsigned long duration = TIMEUOT_CONN; // Set the timer duration
     int flag = 1;
     for (;;) {
       if (client_array[input_from_client].chatting == index) {
@@ -142,20 +199,66 @@ void manage_connect(char *body, client *client_array, int index,
         sockets->client_2 = client_array[input_from_client].socket;
         client_array[index].chatting = -1;
         client_array[input_from_client].chatting = -1;
-        manage_chat((void *)sockets);
+        manage_chat((void *)sockets, client_array, index);
         break;
       }
+      if (millis() - start_time >= duration) {
+        start_time = millis(); // Reset the start time for the next interval
+        client_array[index].chatting = -1;
+        char response[BUFFER_SIZE] = {0};
+        strcpy(response,
+               "Time expired, the other user did not connect with you...");
+        encapsulate_nack(response);
+        manage_disconnect(body, client_array, index, *client_socket);
+        send(*client_socket, response, BUFFER_SIZE, 0);
+        return;
+      }
       if (flag == 1) {
-        // TODO: Setear un tiempo de espera (numero de ciclos maximos)
         char response[BUFFER_SIZE] = {0};
         strcpy(response, "Wating for the other client to select you...\n");
         encapsulate_message(response);
         send(*client_socket, response, BUFFER_SIZE, 0);
-        printf("Can't chat with user %d\n", input_from_client);
         flag = 0;
       }
-      /* i++; */
     }
+  }
+}
+
+/*
+ * This function manages the message
+ *
+ * Input:
+ *    - char *body: The body of the message
+ *    - int client_socket: The socket of the client
+ *    - int client_socket_2: The socket of the other client
+ * */
+void manage_message(char *body, int client_socket, int client_socket_2) {
+  char response[BUFFER_SIZE];
+  strcpy(response, body);
+  encapsulate_message(response);
+  if ((send(client_socket_2, response, sizeof(response), 0)) < 0) {
+    printf("Message not sent...\n");
+  }
+  bzero(response, BUFFER_SIZE);
+  strcpy(response, "1");
+  encapsulate_ack(response);
+  if ((send(client_socket, response, sizeof(response), 0)) < 0) {
+    printf("Message not sent...\n");
+  }
+}
+
+/*
+ * This function manages the exit
+ *
+ * Input:
+ *    - int client_socket_2: The socket of the other client
+ * */
+void manage_exit(int client_socket_2) {
+  char response[BUFFER_SIZE];
+  strcpy(response, "The other client has exited the chat, please exit...");
+  encapsulate_exit(response);
+  if ((send(client_socket_2, response, sizeof(response), 0)) < 0) {
+    printf("Message not sent...\n");
   }
 }
 
@@ -168,7 +271,7 @@ void manage_connect(char *body, client *client_array, int index,
  *    - int *client_socket: The socket of the client
  * */
 void connect_to_server(int *client_socket) {
-  char hostname[15];
+  char hostname[sizeof(HOSTNAME)];
   strcpy(hostname, HOSTNAME);
 
   struct sockaddr_in servaddr, cli;
@@ -285,25 +388,13 @@ int analyze_header_server(char *header, char *body, client *client_array,
     printf("-----registered----- \n");
   } else if ((strcmp(header, "CONNECT") == 0)) {
     manage_connect(body, client_array, index, &client_socket);
-  } else if ((strcmp(header, "MESSAGE") ==
-              0)) { // TODO: Create manage message function
-    char response[BUFFER_SIZE];
-    strcpy(response, body);
-    encapsulate_message(response);
-    if ((send(client_socket_2, response, sizeof(response), 0)) < 0) {
-      printf("Message not sent...\n");
-    }
-  } else if ((strcmp(header, "EXIT") ==
-              0)) { // TODO: Create manage exit function
-    char response[BUFFER_SIZE];
-    strcpy(response, "The other client has exited the chat, please exit...");
-    encapsulate_exit(response);
-    if ((send(client_socket_2, response, sizeof(response), 0)) < 0) {
-      printf("Message not sent...\n");
-    }
+  } else if ((strcmp(header, "MESSAGE") == 0)) {
+    manage_message(body, client_socket, client_socket_2);
+  } else if ((strcmp(header, "EXIT") == 0)) {
+    manage_exit(client_socket_2);
     return -1;
   } else if ((strcmp(header, "DISCONNECT") == 0)) {
-    // TODO: Remove from array
+    manage_disconnect(body, client_array, index, client_socket);
     printf("Disconnecting chat with client socket %d\n", client_socket);
     char response[BUFFER_SIZE];
     strcpy(response, "The other client has exited the chat, please exit...");
@@ -347,20 +438,40 @@ int uncapsulate_server(char *buff, client *client_array, int index,
  * Input:
  *    - int client_socket: The socket of the client. Mandatory
  *    - char *buff: The buffer to store the message. Mandatory
+ *    - client *client_array: The array of clients. If no need send NULL
+ *    - int index: The index of the client. If no need send -1
  *
  * Output:
  *    - int: The status of the message (0: success, -1: exit/disconnect)
  * */
-int read_socket(int client_socket, char *buff) {
+int read_socket(int client_socket, char *buff, client *client_array,
+                int index) {
   int recv_len = recv(client_socket, buff, BUFFER_SIZE, 0);
   if (recv_len == 0) {
     printf("Client disconnected with socket number: %d\n", client_socket);
-    // TODO: Remove from array
+    if (client_array != NULL && index != -1) { // Just eliminate from server
+      manage_disconnect(buff, client_array, index, client_socket);
+      printf("Remaining clients:\n");
+      for (int i = 0; i < BACKLOG; ++i) {
+        if (client_array[i].username != NULL) {
+          printf("Client %d: %s\n", i + 1, client_array[i].username);
+        }
+      }
+    }
+
     return -1;
   }
   if (recv_len < 0) {
     perror("recv failed...\n");
-    // TODO: Remove from array
+    if (client_array != NULL && index != -1) { // Just eliminate from server
+      manage_disconnect(buff, client_array, index, client_socket);
+      printf("Remaining clients:\n");
+      for (int i = 0; i < BACKLOG; ++i) {
+        if (client_array[i].username != NULL) {
+          printf("Client %d: %s\n", i + 1, client_array[i].username);
+        }
+      }
+    }
     return -1;
   };
   return recv_len;
@@ -424,7 +535,11 @@ void encapsulate_nack(char *msg) {
  *    - int: The status of the message (0: success, -1: exit/disconnect)
  * */
 int analize_header_client(char *buffer, char *header, char *body) {
-  if ((strcmp(header, "ACK")) == 0) { // ask to wich user to connect
+  if ((strcmp(header, "ACK")) == 0) {
+    /* printf("*** ACK recieved ***\n"); */
+    return 0;
+  }
+  if ((strcmp(header, "REGISTER")) == 0) { // ask to wich user to connect
     printf("\033[2J\033[1;1H");
     printf("Type 'disconnect' in a chat to end the program\n");
     printf("Type 'exit' in a chat to exit that chat\n");
@@ -434,6 +549,7 @@ int analize_header_client(char *buffer, char *header, char *body) {
     bzero((void *)buffer, sizeof(buffer));
     printf("Connect with: \n");
   } else if ((strcmp(header, "NACK")) == 0) {
+    printf("%s\n", body);
     printf("NACK recieved\n");
     printf("Send a key to RESTART...\n");
     return -1;

@@ -5,7 +5,7 @@
 #define PORT 8080             // Port of the protocol
 #define BUFFER_SIZE BUFFER_SIZE_HEADER + BUFFER_SIZE_MSG
 #define MAX_LEN_USERNAME 15 // Max length of username
-#define TIMEUOT_CONN 10000  // 10 seconds time out for try connection
+#define TIMEUOT_CONN 30000  // 30 seconds time out for try connection
 
 typedef struct {
   char *username;

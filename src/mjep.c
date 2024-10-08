@@ -197,9 +197,9 @@ void manage_connect(char *body, client *client_array, int index,
         SocketPair *sockets = (SocketPair *)malloc(sizeof(SocketPair));
         sockets->client_1 = client_array[index].socket;
         sockets->client_2 = client_array[input_from_client].socket;
+        manage_chat((void *)sockets, client_array, index);
         client_array[index].chatting = -1;
         client_array[input_from_client].chatting = -1;
-        manage_chat((void *)sockets, client_array, index);
         break;
       }
       if (millis() - start_time >= duration) {

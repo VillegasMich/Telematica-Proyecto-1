@@ -1,4 +1,5 @@
 #include "mjep.h"
+#include "colors.h"
 #include "config.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -536,33 +537,34 @@ void encapsulate_nack(char *msg) {
  * */
 int analize_header_client(char *buffer, char *header, char *body) {
   if ((strcmp(header, "ACK")) == 0) {
-    /* printf("*** ACK recieved ***\n"); */
-    return 0;
+    /* printf(GREEN "*** ACK recieved ***\n" RESET); */
   }
   if ((strcmp(header, "REGISTER")) == 0) { // ask to wich user to connect
     printf("\033[2J\033[1;1H");
-    printf("Type 'disconnect' in a chat to end the program\n");
+    printf(CYAN "Type 'disconnect' in a chat to end the program\n");
     printf("Type 'exit' in a chat to exit that chat\n");
     printf("Users available to connect: \n");
-    printf("-1 to refresh: \n");
-    printf("%s\n", body);
+    printf("-1 to refresh: \n" RESET);
+    printf("\n%s\n", body);
     bzero((void *)buffer, sizeof(buffer));
     printf("Connect with: \n");
   } else if ((strcmp(header, "NACK")) == 0) {
     printf("%s\n", body);
-    printf("NACK recieved\n");
-    printf("Send a key to RESTART...\n");
+    printf(RED "NACK recieved\n" RESET);
+    printf(RED "Send a key to RESTART...\n" RESET);
     return -1;
   } else if ((strcmp(header, "MESSAGE") == 0)) { // ask for message
     if (strcmp(body, "connected") == 0)
       printf("\033[2J\033[1;1H"); // when connect clear the console
-    printf(">>> %s\n", body);     // print message from the other user
+    printf(GREEN ">>> " RESET);
+    printf("%s\n", body); // print message from the other user
   } else if ((strcmp(header, "DISCONNECT") == 0)) {
-    printf("Disconnecting chat with client\n");
-    printf("Send a key to RESTART...\n");
+    printf(YELLOW "Disconnecting chat with client\n");
+    printf("Send a key to RESTART...\n" RESET);
     return -1;
   } else if ((strcmp(header, "EXIT") == 0)) {
-    printf(">>> %s\n", body); // print message from the other user
+    printf(YELLOW ">>> ");
+    printf("%s\n" RESET, body); // print message from the other user
   }
   return 0;
 }

@@ -1,3 +1,4 @@
+#include "colors.h"
 #include "config.h"
 #include "mjep.h"
 #include <arpa/inet.h>
@@ -9,23 +10,19 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-void listen_for_server_messages(void *server_socket)
-{
+void listen_for_server_messages(void *server_socket) {
   char buffer[BUFFER_SIZE];
   char header[BUFFER_SIZE_HEADER];
   char body[MAX_LEN_USERNAME * BACKLOG];
   int *s_socket = (int *)server_socket;
-  while (1)
-  {
+  while (1) {
     bzero((void *)buffer, BUFFER_SIZE);
     int socket_status = read_socket(*s_socket, buffer, NULL, -1);
-    if (socket_status < 0)
-    {
+    if (socket_status < 0) {
       break;
     }
     int result = uncapsulate_client(buffer, header, body);
-    if (result == -1)
-    {
+    if (result == -1) {
       break;
     }
   }
@@ -33,20 +30,16 @@ void listen_for_server_messages(void *server_socket)
   pthread_exit(NULL);
 }
 
-void listen_for_client_messages(void *server_socket)
-{
+void listen_for_client_messages(void *server_socket) {
   int *s_socket = (int *)server_socket;
-  while (1)
-  {
+  while (1) {
     char buffer[BUFFER_SIZE];
     char *user_input;
     user_input = "-1";
     int flag = 0;
     int n;
-    while (1)
-    {
-      if (flag != 0)
-      {
+    while (1) {
+      if (flag != 0) {
         bzero((void *)buffer, sizeof(buffer));
         break;
       }
@@ -57,13 +50,11 @@ void listen_for_client_messages(void *server_socket)
       while ((buffer[n++] = getchar()) != '\n')
         ;
       buffer[strcspn(buffer, "\n")] = '\0';
-      if (strcmp(buffer, "disconnect") == 0)
-      {
-        printf("Disconnecting from server...\n");
+      if (strcmp(buffer, "disconnect") == 0) {
+        printf(YELLOW "Disconnecting from server...\n" RESET);
         encapsulate_disconnect(buffer);
-        if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0)
-        {
-          printf("Message not sent...\n");
+        if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0) {
+          printf(RED "Message not sent...\n" RESET);
         }
         shutdown(*s_socket, SHUT_RDWR);
         pthread_exit(NULL);
@@ -71,53 +62,44 @@ void listen_for_client_messages(void *server_socket)
       user_input = buffer;
       flag = strcmp(user_input, "-1");
       encapsulate_connect(buffer);
-      if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0)
-      {
-        printf("Message not sent...\n");
+      if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0) {
+        printf(RED "Message not sent...\n" RESET);
       }
     }
-    while (1)
-    { // Ask for chat messages
+    while (1) { // Ask for chat messages
       n = 0;
       while ((buffer[n++] = getchar()) != '\n')
         ;
       buffer[strcspn(buffer, "\n")] = '\0';
-      if (strlen(buffer) == 0)
-      {
-        printf("Enter a valid string\n");
+      if (strlen(buffer) == 0) {
+        printf(YELLOW "Enter a valid string\n" RESET);
         continue;
       }
-      if (strcmp(buffer, "disconnect") == 0)
-      {
-        printf("Disconnecting from server...\n");
+      if (strcmp(buffer, "disconnect") == 0) {
+        printf(YELLOW "Disconnecting from server...\n" RESET);
         encapsulate_disconnect(buffer);
-        if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0)
-        {
-          printf("Message not sent...\n");
+        if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0) {
+          printf(RED "Message not sent...\n" RESET);
         }
         shutdown(*s_socket, SHUT_RDWR);
         pthread_exit(NULL);
       }
-      if (strcmp(buffer, "exit") == 0)
-      {
+      if (strcmp(buffer, "exit") == 0) {
         encapsulate_exit(buffer);
-        if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0)
-        {
-          printf("Message not sent...\n");
+        if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0) {
+          printf(RED "Message not sent...\n" RESET);
         }
         break;
       }
       encapsulate_message(buffer);
-      if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0)
-      {
-        printf("Message not sent...\n");
+      if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0) {
+        printf(RED "Message not sent...\n" RESET);
       }
     }
   }
 }
 
-int main()
-{
+int main() {
   int client_socket;
   connect_to_server(&client_socket);
 
@@ -128,9 +110,8 @@ int main()
     ;
   encapsulate_register(buffer);
 
-  if ((send(client_socket, buffer, sizeof(buffer), 0)) < 0)
-  {
-    printf("Message not sent...\n");
+  if ((send(client_socket, buffer, sizeof(buffer), 0)) < 0) {
+    printf(RED "Message not sent...\n" RESET);
   }
   // registered
 

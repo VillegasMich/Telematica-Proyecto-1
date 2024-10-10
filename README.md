@@ -1,16 +1,26 @@
-# Proyecto 1 Chat
+# Proyecto 1 Chat ~ Cliente / Servidor
 
 <!--toc:start-->
 
-- [Proyecto 1 Chat](#proyecto-1-chat-proyecto-1-chat)
+- [Proyecto 1 Chat ~ Cliente / Servidor](#proyecto-1-chat-cliente-servidor)
+  - [Desarrolladores](#desarrolladores)
   - [Introducción](#introducción)
   - [Desarrollo](#desarrollo)
+    - [Ejecución](#ejecución)
     - [Cliente](#cliente)
     - [Servidor](#servidor)
-  - [Aspectos Logrados y No logrados](#aspectos-logrados-y-no-logrados)
+  - [Aspectos Logrados y Posibles mejoras](#aspectos-logrados-y-posibles-mejoras)
+    - [Que logramos](#que-logramos)
+    - [Que podemos mejorar](#que-podemos-mejorar)
   - [Conclusiones](#conclusiones)
   - [Referencias](#referencias)
   <!--toc:end-->
+
+## Desarrolladores
+
+- [Julian Mejia](https://github.com/julimejia)
+- [Esteban Muriel](https://github.com/estebanm30)
+- [Manuel Villegas](https://github.com/VillegasMich)
 
 ## Introducción
 
@@ -23,8 +33,9 @@ Dicha aplicación se encarga de la gestión de los mensajes, tanto como para el 
 Esta aplicación maneja tanto el cliente como el servidor en el lenguaje de programación [C](<https://en.wikipedia.org/wiki/C_(programming_language)>), donde encontramos la siguiente estructura:
 
 ```
+...
+|
 src/ ----|
-         |
          client.c
          |
          server.c
@@ -32,13 +43,37 @@ src/ ----|
          mjep.h
          |
          mjep.c
+         |
+         config.h
 ```
 
-Donde _client.c_ se encuentra el programa del cliente (código que ejecuta quien se quiere conectar al servidor), _server.c_ (código que se mantiene ejecutando el servidor) y _mjep_ _.h_ y _.c_, la definición del protocolo y su implementación respectiva.
+Donde _client.c_ se encuentra el programa del cliente (código que ejecuta quien se quiere conectar al servidor), _server.c_ (código que se mantiene ejecutando el servidor) y _mjep_ _.h_ y _.c_, la definición del protocolo y su implementación respectiva. Por ultimo el archivo _config.h_ contiene una configuracion básica para el servidor.
 
 Toda la respectiva documentación del protocolo se puede encontrar [aquí]().
 
 Además, se utilizan la [API de sockets de la universidad de Berkeley](https://en.wikipedia.org/wiki/Berkeley_sockets) para el manejo de las conexiones entre el servidor y los clientes a un nivel superior a la capa 4 del [modelo TCP/IP](https://www.geeksforgeeks.org/tcp-ip-model/) y otra importante como el manejo de la concurrencia con el uso de la [API de pthreads](https://en.wikipedia.org/wiki/Pthreads) para el manejo de los hilos tanto como en el cliente como en el servidor.
+
+### Ejecución
+
+1. Clonamos el repositorio en la máquina.
+
+`$ git clone https://github.com/VillegasMich/Telematica-Proyecto-1.git`
+
+2. Actualizamos los permisos de los archivos .sh (si es que lo nocesitan).
+
+`$ chmod +x *.sh`
+
+3. Ejecutamos el archivo .sh para compilar.
+
+`$ ./compile.sh`
+
+4. Ejecutamos el archivo correspondiente.
+
+`$ ./build/server` para el servidor.
+
+`$ ./build/client` para el cliente.
+
+Nota: Es necesario ubicar la IP publica del servidor en el archivo `src/config.h` antes de compilar.
 
 ### Cliente
 
@@ -76,9 +111,34 @@ La estructura del servidor es la siguiente:
 
 El servidor también tiene una estructura concurrente (todas las aplicaciones en red lo son, esta no podía ser la excepción), con un hilo principal quien se encarga de comenzar el servidor y escuchar por clientes, cuando un cliente se conecta se selecciona un hilo de la piscina de hilos para manejar ese cliente personalmente. El número de hilos/clientes que soporta el servidor está dado por el mismo protocolo en una variable definida como _BACKLOG_.
 
-## Aspectos Logrados y No logrados
+## Aspectos Logrados y Posibles mejoras
+
+### Que logramos
+
+- Cumplimos con la definicion, creacion, e implementacion de un protocolo para el intercambio de mensajes por medio de una estructura cliente/servidor.
+- Implementamos una aplicacion en red para el intercambio de mensajes entre dos clientes por medio de un servidor utilizando dicho protocolo.
+- Dicha aplicacion implementa manejo de concurrencia por medio de distintos hilos para poder realizar diferentes tareas de manera simultanea.
+- Definimos y documentamos de manera correcta tanto la aplicación en red como el protocolo.
+- Aprendimos a reconocer e implementar conseptos de abstraccion, interfaz, encapsulamiento y des encapsulamiento.
+- Implementamos y utilizamos de manera correcta la API de sockets de la universidad de Berkeley.
+- Implementamos los conseptos estudiados en el curso de Telematica con el Profesor Juan Carlos Montoya.
+- Despliegue del servidor en un servidor en la nube de AWS.
+
+### Que podemos mejorar
+
+- Crear una interfaz de usuario (UI) mas interactiva para la aplicacion.
+- Manejo de la informacion desde el lado del servidor, implementar una mejor estructura de datos.
+- Escritura de un código aún mas limpio y legible.
+- Manejo persistente de la información. Generar un log de información sobre los clientes y mensajes.
 
 ## Conclusiones
+
+Con el desarrollo de este trabajo hemos podido mejorar nuestras capacidades como programadores y diseñadores de software, no solo por el especificar e implementar un protocolo creado por nosotros mismos, sino por implementar de manera correcta los conceptos estudiados en clase y durante toda la carrera de Ingeniería de Sistemas.
+
+El uso de un lenguaje de programación como C nos obligó a conocer un nivel mas bajo de la programación (aunque siga siendo alto nivel), y con esto generar un mayor nivel de abstracción
+y escritura correcta de código permitiendo un mejor entendimiento de las temáticas vistas en clase.
+
+Finalmente este proyecto nos ha permitido observar como los procesos en red funcionan y como tienen distintas aproximaciones por las cuales se acercan a una misma solución.
 
 ## Referencias
 

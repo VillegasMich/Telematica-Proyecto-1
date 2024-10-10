@@ -1,6 +1,6 @@
 #ifndef MJEP_H
 #define MJEP_H
-#define BUFFER_SIZE_MSG 2000  // Buffer size of raw message
+#define BUFFER_SIZE_MSG 500   // Buffer size of raw message
 #define BUFFER_SIZE_HEADER 15 // Buffer size of header
 #define PORT 8080             // Port of the protocol
 #define BUFFER_SIZE BUFFER_SIZE_HEADER + BUFFER_SIZE_MSG

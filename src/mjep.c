@@ -166,8 +166,11 @@ void manage_connect(char *body, client *client_array, int index,
       char response[BUFFER_SIZE] = {0};
       strcpy(response, "Can't chat with yourself");
       encapsulate_nack(response);
+      int val = send(*client_socket, response, BUFFER_SIZE, 0);
       manage_disconnect(client_array, index, *client_socket);
-      send(*client_socket, response, BUFFER_SIZE, 0);
+      if (val < 0) {
+        printf("Message not sent...\n");
+      }
       return;
     }
     if (input_from_client < 0 || input_from_client >= BACKLOG) {
@@ -175,17 +178,23 @@ void manage_connect(char *body, client *client_array, int index,
       char response[BUFFER_SIZE] = {0};
       strcpy(response, "Incorrect index, please try, again");
       encapsulate_nack(response);
+      int val = send(*client_socket, response, BUFFER_SIZE, 0);
       manage_disconnect(client_array, index, *client_socket);
-      send(*client_socket, response, BUFFER_SIZE, 0);
+      if (val < 0) {
+        printf("Message not sent...\n");
+      }
       return;
     }
     if (client_array[input_from_client].username == NULL) {
       client_array[index].chatting = -1;
       char response[BUFFER_SIZE] = {0};
-      strcpy(response, "User not found, please try, again");
+      strcpy(response, "User not found");
       encapsulate_nack(response);
+      int val = send(*client_socket, response, BUFFER_SIZE, 0);
       manage_disconnect(client_array, index, *client_socket);
-      send(*client_socket, response, BUFFER_SIZE, 0);
+      if (val < 0) {
+        printf("Message not sent...\n");
+      }
       return;
     }
     unsigned long start_time = millis();   // Record the start time
@@ -209,8 +218,8 @@ void manage_connect(char *body, client *client_array, int index,
         strcpy(response,
                "Time expired, the other user did not connect with you...");
         encapsulate_nack(response);
-        manage_disconnect(client_array, index, *client_socket);
         send(*client_socket, response, BUFFER_SIZE, 0);
+        manage_disconnect(client_array, index, *client_socket);
         return;
       }
       if (flag == 1) {
@@ -454,7 +463,6 @@ int uncapsulate_server(char *buff, client *client_array, int index,
 int read_socket(int client_socket, char *buff, client *client_array,
                 int index) {
   int recv_len = recv(client_socket, buff, BUFFER_SIZE, 0);
-  /* printf("Recived message: %s\n", buff); */
   if (recv_len == 0) {
     printf("Client disconnected with socket number: %d\n", client_socket);
     if (client_array != NULL && index != -1) { // Just eliminate from server
@@ -561,7 +569,8 @@ int analize_header_client(char *buffer, char *header, char *body) {
   } else if ((strcmp(header, "NACK")) == 0) {
     printf("%s\n", body);
     printf(RED "NACK recieved\n" RESET);
-    printf(RED "Send a key to RESTART...\n" RESET);
+    printf(RED "Send a key to RESTART..." RESET);
+    printf("\n");
     return -1;
   } else if ((strcmp(header, "MESSAGE") == 0)) { // ask for message
     if (strcmp(body, "connected") == 0)

@@ -2,7 +2,6 @@
 #include "config.h"
 #include "mjep.h"
 #include <arpa/inet.h>
-#include <ctype.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdio.h>

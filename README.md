@@ -59,21 +59,18 @@ Además, se utilizan la [API de sockets de la universidad de Berkeley](https://e
 
 `$ git clone https://github.com/VillegasMich/Telematica-Proyecto-1.git`
 
-2. Actualizamos los permisos de los archivos .sh (si es que lo nocesitan).
+2. Compilamos la aplicación cliente
 
-`$ chmod +x *.sh`
+`$ make`
 
-3. Ejecutamos el archivo .sh para compilar.
-
-`$ ./compile.sh`
-
-4. Ejecutamos el archivo correspondiente.
+3. Ejecutamos el archivo correspondiente.
 
 `$ ./build/server` para el servidor.
 
 `$ ./build/client` para el cliente.
 
-Nota: Es necesario ubicar la IP publica del servidor en el archivo `src/config.h` antes de compilar.
+[!NOTE]
+Es necesario ubicar la IP publica del servidor en el archivo `src/config.h` antes de compilar.
 
 ### Cliente
 

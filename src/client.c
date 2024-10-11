@@ -13,7 +13,7 @@
 void listen_for_server_messages(void *server_socket) {
   char buffer[BUFFER_SIZE];
   char header[BUFFER_SIZE_HEADER];
-  char body[MAX_LEN_USERNAME * BACKLOG];
+  char body[MAX_LEN_USERNAME * (BACKLOG + 100)];
   int *s_socket = (int *)server_socket;
   while (1) {
     bzero((void *)buffer, BUFFER_SIZE);

@@ -12,6 +12,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <locale.h>
+#include <stdio.h>
 
 typedef struct {
   int client_1;
@@ -119,7 +121,7 @@ void send_users(client *client_array, char *response, int index) {
 void manage_register(char *body, client *client_array, int index,
                      int client_socket) {
   char response[MAX_LEN_USERNAME * BACKLOG] = {0};
-  client_array[index].username = malloc(strlen(body) + 1);
+  client_array[index].username = malloc(strlen(body) + 100);
   if (client_array[index].username == NULL || index >= BACKLOG) {
     strcpy(response, "0");
   } else {
@@ -438,13 +440,16 @@ int analyze_header_server(char *header, char *body, client *client_array,
 int uncapsulate_server(char *buff, client *client_array, int index,
                        int client_socket, int client_socket_2) {
   char header[BUFFER_SIZE_HEADER], body[MAX_LEN_USERNAME * BACKLOG];
-  char *token;
-  token = strtok(buff, " ");
-  strcpy(header, token);
-  token = strtok(NULL, header);
-  strcpy(body, token);
-  body[strcspn(body, "\n")] = '\0';
-  return analyze_header_server(header, body, client_array, index, client_socket,
+
+    char *token = strtok(buff, " "); // HEADER
+    strcpy(header, token);  
+
+    char *body_start = buff + strlen(header) + 1;  // body
+    strcpy(body, body_start);  
+
+    body[strcspn(body, "\n")] = '\0';
+
+    return analyze_header_server(header, body, client_array, index, client_socket,
                                client_socket_2);
 }
 
@@ -494,6 +499,10 @@ int read_socket(int client_socket, char *buff, client *client_array,
 }
 
 void encapsulate_register(char *msg) {
+      char *locale = setlocale(LC_ALL, "");
+    
+    printf("Locale actual: %s\n", locale);
+    
   char encapsulated_msg[BUFFER_SIZE] = "REGISTER ";
   strcat(encapsulated_msg, msg);
   strcpy(msg, encapsulated_msg);

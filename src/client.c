@@ -2,6 +2,7 @@
 #include "config.h"
 #include "mjep.h"
 #include <arpa/inet.h>
+#include <ctype.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -60,6 +61,11 @@ void listen_for_client_messages(void *server_socket) {
         pthread_exit(NULL);
       }
       user_input = buffer;
+      int num = atoi(user_input);
+      if (num == 0 && user_input[0] != '0') {
+        user_input = "-1";
+        strcpy(buffer, "-1");
+      }
       flag = strcmp(user_input, "-1");
       encapsulate_connect(buffer);
       if ((send(*s_socket, buffer, sizeof(buffer), 0)) < 0) {

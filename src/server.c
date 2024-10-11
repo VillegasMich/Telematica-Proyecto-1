@@ -6,7 +6,6 @@
 #include <strings.h>
 #include <sys/socket.h>
 
-
 typedef struct {
   int client_socket;
   client *clients_array;
@@ -58,6 +57,7 @@ int main() {
     accept_connection(&server_socket, &client_socket);
     t_arg.client_socket = client_socket;
     t_arg.index = index;
+    /* printf("Thread -> %lu\n", thread_pool[n_thread]); */
     if ((pthread_create(&thread_pool[n_thread], NULL, (void *)manage_client,
                         &t_arg)) < 0) {
       printf("Error creating the thread");
